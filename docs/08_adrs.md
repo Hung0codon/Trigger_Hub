@@ -127,11 +127,10 @@
 - **Date**: 2026-06-24
 - **Context**: 
   Tín hiệu cảnh báo từ Observability stack gửi về hệ thống là cực kỳ quan trọng. Nếu xảy ra sự cố nghẽn mạng hoặc worker bị sập, cơ chế *Lambda Async Retry* không đảm bảo lưu trữ alert lâu dài, dễ gây mất cảnh báo sinh mệnh hoặc tạo trùng lặp ticket trên Jira/Slack khi retry.
-  
+- **Decision**: Chốt sử dụng mô hình kết hợp **Ingest Lambda**, **SQS FIFO Queue** làm bộ đệm giảm chấn, **Amazon DynamoDB** làm kho lưu trữ trạng thái (**State Store**), và **Amazon S3** làm kho lưu trữ bằng chứng sự cố (**Evidence Store**).
+
   ### Luồng xử lý tiêu chuẩn (Standard Pipeline Flow):
   Prometheus/Alertmanager (Webhook) ──► Ingest Lambda ──► SQS FIFO ──► AIOps Worker ──► TF1 AI Engine (Bedrock) ──► DynamoDB & S3 ──► Jira/Slack.
-  
-- **Decision**: Chốt sử dụng mô hình kết hợp **Ingest Lambda**, **SQS FIFO Queue** làm bộ đệm giảm chấn, **Amazon DynamoDB** làm kho lưu trữ trạng thái (**State Store**), và **Amazon S3** làm kho lưu trữ bằng chứng sự cố (**Evidence Store**).
 
 - **Consequence**:
   - ✅ **Độ bền vững tuyệt đối (Durability)**: SQS FIFO bảo vệ alert tối đa 14 ngày kể cả khi worker phía sau bị sập, không bao giờ bị mất tín hiệu cảnh báo âm thầm.

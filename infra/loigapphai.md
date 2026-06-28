@@ -316,6 +316,47 @@ Sử dụng chính tài khoản quản trị AWS CLI đã đăng nhập trên m�
    aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/945125812908/tf1-cdo05-sandbox-alert-queue.fifo --attribute-names ApproximateNumberOfMessages
    ```
 
+---
+
+## 7. Lỗi ErrImagePull (403 Forbidden) Khi EKS Node Group Kéo Image ECR Của AI Team
+
+### Chi Tiết Lỗi (Error Message)
+Khi chạy Pod (hoặc Argo Rollout) sử dụng image bàn giao từ AI Team (`589077667575.dkr.ecr.us-east-1.amazonaws.com/tf1-ai-triage-engine:v1.0.0`), Pod rơi vào trạng thái `ImagePullBackOff` hoặc `ErrImagePull` kèm log chi tiết từ kubelet:
+```text
+Failed to pull image "589077667575.dkr.ecr.us-east-1.amazonaws.com/tf1-ai-triage-engine:v1.0.0": 
+failed to resolve reference ... unexpected status from HEAD request to https://589077667575.dkr.ecr.us-east-1.amazonaws.com/v2/tf1-ai-triage-engine/manifests/v1.0.0: 403 Forbidden
+```
+
+### Nguyên Nhân (Root Cause)
+Kho lưu trữ ECR của AI Team (`589077667575`) là một tài khoản AWS khác. Để EKS ở tài khoản của bạn (`945125812908`) có thể kéo được image, AI Team phải phân quyền chéo tài khoản (Cross-Account Pull Permission) bằng cách thêm AWS Account ID của bạn vào chính sách kho lưu trữ (Repository Policy) của họ. 
+
+Nếu họ chỉ phân quyền cho tài khoản của thành viên khác trong nhóm (ví dụ: `629149146950`), cụm EKS của các thành viên còn lại sẽ bị chặn 403 Forbidden khi tải image này.
+
+### Cách Khắc Phục (Solution)
+1. **Yêu cầu AI Team bổ sung quyền**:
+   Gửi AWS Account ID của bạn (**`945125812908`**) cho đội AI Team và yêu cầu họ cập nhật Repository Policy trên ECR để cho phép Principal của bạn thực hiện hành động `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer`.
+   
+   *Policy mẫu phía AI Team cần cấu hình*:
+   ```json
+   {
+     "Sid": "AllowCrossAccountPull",
+     "Effect": "Allow",
+     "Principal": {
+       "AWS": "arn:aws:iam::945125812908:root"
+     },
+     "Action": [
+       "ecr:BatchGetImage",
+       "ecr:GetDownloadUrlForLayer"
+     ]
+   }
+   ```
+
+2. **Giải pháp thay thế (Đẩy ECR cá nhân)**:
+   Nếu cần test gấp mà chưa liên hệ được AI Team, nhờ thành viên đã có quyền (ví dụ tài khoản `629149146950`):
+   * Chạy lệnh `docker pull` image đó về máy local.
+   * Tạo một kho ECR riêng trên tài khoản của bạn hoặc push sang kho công cộng (Docker Hub/ECR Public) để làm registry trung gian test tạm thời.
+
+
 
 
 

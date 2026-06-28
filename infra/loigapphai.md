@@ -2,7 +2,12 @@
 
 Tài liệu này ghi lại các lỗi phát sinh trong quá trình vận hành hạ tầng IaC (Terraform) và các bước xử lý tương ứng để làm tài liệu tham khảo cho đội ngũ.
 
+> [!TIP]
+> **Giao diện Giả lập Lỗi Tương tác (Interactive Error Simulator)**:
+> Bạn có thể mở trực tiếp tệp tin [**`simulator/error_simulator.html`**](../simulator/error_simulator.html) bằng trình duyệt để xem mô phỏng trực quan, chạy lệnh giả lập lỗi trên Terminal và xem cách fix thực tế cho toàn bộ 6 lỗi dưới đây.
+
 ---
+
 
 ## 1. Lỗi 403 Forbidden Khi Khởi Tạo Backend S3 (`terraform init`)
 

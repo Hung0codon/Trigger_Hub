@@ -149,5 +149,50 @@ Cần gán đồng thời cả Custom Security Group (`sg-eks-nodes`) và EKS Pr
    terraform apply -auto-approve
    ```
 
+---
+
+## 4. Lỗi ValidationException Khi Cấu Hình CORS Cho Lambda Function URL (CORS allowMethods Constraint)
+
+### Chi Tiết Lỗi (Error Message)
+```text
+│ Error: updating Lambda Function URL (tf1-cdo05-sandbox-ingest-handler): operation error Lambda: UpdateFunctionUrlConfig, 
+│ https response error StatusCode: 400, RequestID: d13a4225-3639-40a4-91a5-141aa6ab16c9, 
+│ api error ValidationException: 1 validation error detected: Value '[POST, OPTIONS]' at 'cors.allowMethods' 
+│ failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 6, 
+│ Member must have length greater than or equal to 0, Member must satisfy regular expression pattern: .*, Member must not be null]
+```
+
+### Nguyên Nhân (Root Cause)
+AWS Lambda Function URL API áp dụng một ràng buộc rất nghiêm ngặt đối với mảng các phương thức CORS (`allow_methods`). Mỗi phần tử trong mảng này bắt buộc phải có độ dài **nhỏ hơn hoặc bằng 6 ký tự** (`Member must have length less than or equal to 6`).
+
+Khi chúng ta cấu hình cho phép các request HTTP từ trình duyệt gửi lên, ta thường khai báo:
+`allow_methods = ["POST", "OPTIONS"]`
+
+Tuy nhiên, phương thức `OPTIONS` có độ dài là **7 ký tự** (`O-P-T-I-O-N-S`), vượt quá giới hạn 6 ký tự của API AWS, dẫn đến việc AWS API trả về mã lỗi 400 Bad Request kèm thông báo `ValidationException`.
+
+### Cách Khắc Phục (Solution)
+Để cho phép trình duyệt gửi các request POST thông thường cùng preflight request (OPTIONS) mà không vi phạm ràng buộc về độ dài của AWS API, ta sử dụng ký tự đại diện wildcard:
+
+1. Cập nhật cấu hình trong tài nguyên `aws_lambda_function_url` của file [`infra/environments/sandbox/main.tf`](file:///d:/FIle_doc/Capstone_W11-12/infra/environments/sandbox/main.tf):
+   ```hcl
+   resource "aws_lambda_function_url" "ingest_url" {
+     function_name      = aws_lambda_function.ingest.function_name
+     authorization_type = "NONE"
+
+     cors {
+       allow_origins     = ["*"]
+       allow_methods     = ["*"] # Sử dụng wildcard "*" (1 ký tự) để vượt qua giới hạn 6 ký tự
+       allow_headers     = ["content-type"]
+       expose_headers    = ["date", "keep-alive"]
+       max_age           = 86400
+     }
+   }
+   ```
+2. Chạy lại lệnh apply để cập nhật hạ tầng:
+   ```powershell
+   terraform apply -auto-approve
+   ```
+
+
 
 

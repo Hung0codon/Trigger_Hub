@@ -23,29 +23,55 @@
 ## 2. Kiểm Thử Luồng Sự Cố Webhook & Integration (A-Z)
 
 Luồng kiểm thử này đi qua các thành phần:
-`Simulator Web App` ➡️ `AWS Lambda Ingest` ➡️ `Amazon SQS Queue` ➡️ `AWS Lambda Integration (Mock Mode)` ➡️ `CloudWatch Logs`
+`Simulator (Web App / Script)` ➡️ `AWS Lambda Ingest` ➡️ `Amazon SQS Queue` ➡️ `AWS Lambda Integration (Mock Mode)`
 
-### 👉 Bước 2.1: Lấy URL Endpoint của Ingest Lambda
-Từ thư mục `infra/environments/sandbox`, chạy lệnh sau để kiểm tra đầu ra:
-```powershell
-terraform output ingest_lambda_url
-```
-*Kết quả mẫu:* `"https://x2ybvssszftteooo43acita4jq0iyllt.lambda-url.us-east-1.on.aws/"`
+---
 
-### 👉 Bước 2.2: Khởi chạy và cấu hình Web App Simulator
-1. Mở tệp tin [`simulator/index.html`](../simulator/index.html) bằng trình duyệt (Double-click vào file).
-2. Dán địa chỉ URL thu được ở **Bước 2.1** vào ô **Lambda Ingest Webhook URL**.
-3. Tại ô **Load Incident Template**, chọn một mẫu sự cố bất kỳ (ví dụ: *High CPU Alert (EKS)* hoặc *DynamoDB Read Throttling*). 
-4. Hệ thống sẽ tự động hiển thị mẫu Payload JSON tương thích ở khung bên phải.
+### 👉 Cách A: Kiểm thử qua Web App Simulator (Nếu tài khoản cho phép Public URL)
 
-### 👉 Bước 2.3: Kích hoạt sự cố giả lập
-1. Nhấn nút **Trigger Webhook Alert**.
-2. **Quan sát phản hồi**:
-   * Nếu thành công: Ô kết quả hiển thị màu xanh lá **Success! (HTTP 200)** kèm thông tin:
-     ```json
-     {"message": "Alert ingested successfully", "incident_id": "..."}
-     ```
-   * Sơ đồ luồng (Pipeline Visualization) trên web sẽ nhấp nháy đèn báo hiệu tín hiệu truyền tải.
+1. **Lấy URL Endpoint của Ingest Lambda**:
+   Từ thư mục `infra/environments/sandbox`, chạy lệnh:
+   ```powershell
+   terraform output ingest_lambda_url
+   ```
+2. **Khởi chạy Web App**:
+   * Mở tệp tin [`simulator/index.html`](../simulator/index.html) bằng trình duyệt.
+   * Dán URL vào ô **Lambda Ingest Webhook URL**.
+   * Chọn một mẫu sự cố bất kỳ (ví dụ: *High CPU Alert (EKS)*) và nhấn **Trigger Webhook Alert**.
+   * Nếu tài khoản AWS của bạn **không chặn** Public Function URLs, bạn sẽ nhận được phản hồi **HTTP 200** thành công.
+
+---
+
+### 👉 Cách B: Kiểm thử qua Python Script (Nếu tài khoản chặn Public URL - Báo lỗi 403 Forbidden)
+
+Nếu tài khoản AWS Sandbox của bạn thuộc một tổ chức có chính sách bảo mật (SCP) chặn việc public Lambda Function URLs, trình duyệt sẽ báo lỗi `Failed to fetch` hoặc `HTTP 403 Forbidden`. Lúc này, chúng ta sẽ kiểm thử bằng cách gọi trực tiếp (Direct Invoke) Lambda qua AWS SDK/Boto3:
+
+1. **Chạy script kiểm thử bằng Python**:
+   Chạy lệnh sau tại thư mục gốc của dự án:
+   ```powershell
+   python simulator/test_alert.py
+   ```
+2. **Xác nhận kết quả gửi**:
+   Nếu thành công, màn hình sẽ hiển thị phản hồi thành công từ AWS Lambda:
+   ```json
+   HTTP Response Status Code: 200
+   Response Body:
+   {
+     "message": "Alerts processed successfully",
+     "processed": 1,
+     "failed": 0,
+     "errors": []
+   }
+   ```
+3. **Kiểm tra tin nhắn trong SQS Queue**:
+   Chạy lệnh sau để kiểm tra xem SQS FIFO Queue đã nhận và lưu trữ tin nhắn hay chưa:
+   ```powershell
+   aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/945125812908/tf1-cdo05-sandbox-alert-queue.fifo --attribute-names ApproximateNumberOfMessages
+   ```
+   *Kết quả sẽ hiển thị `"ApproximateNumberOfMessages": "1"`, chứng minh thông điệp đã nằm an toàn trong hàng đợi.*
+
+---
+
 
 ### 👉 Bước 2.4: Xác minh xử lý tích hợp (Mock Slack/Jira) trên CloudWatch
 Do chúng ta chưa gán API Key thật của Jira và Slack, hệ thống sẽ chạy ở chế độ **Mock**. Ta cần kiểm tra log để đảm bảo Lambda đã phân tích và sinh thông tin tích hợp đúng đắn:

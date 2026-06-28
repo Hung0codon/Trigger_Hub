@@ -317,3 +317,46 @@ module "tenant_a" {
   eks_oidc_provider_url = module.eks.eks_oidc_provider_url
   eks_oidc_provider_arn = module.eks.eks_oidc_provider_arn
 }
+
+# ==================== API GATEWAY FOR BYPASSING SCP 403 ====================
+
+resource "aws_apigatewayv2_api" "ingest" {
+  name          = "tf1-cdo05-${var.env}-ingest-api"
+  protocol_type = "HTTP"
+  
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["POST", "OPTIONS"]
+    allow_headers = ["content-type"]
+    max_age       = 86400
+  }
+}
+
+resource "aws_apigatewayv2_integration" "ingest" {
+  api_id                 = aws_apigatewayv2_api.ingest.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.ingest.arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "ingest" {
+  api_id    = aws_apigatewayv2_api.ingest.id
+  route_key = "POST /alerts"
+  target    = "integrations/${aws_apigatewayv2_integration.ingest.id}"
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.ingest.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_lambda_permission" "apigw" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.ingest.execution_arn}/*/*"
+}
+

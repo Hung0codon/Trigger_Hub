@@ -28,19 +28,19 @@ Tài liệu này hướng dẫn chi tiết cách kiểm thử và xác minh toà
 
 Luồng kiểm thử này xác minh khả năng tiếp nhận Alert từ Prometheus, chuyển đổi cấu trúc JSON và đẩy thông điệp vào hàng đợi tin nhắn SQS FIFO.
 
-### 👉 Cách A: Kiểm thử qua HTTP Web Simulator (Chỉ dùng nếu tài khoản cho phép Public URL)
-1. **Lấy URL Endpoint của Ingest Lambda**:
+### 👉 Cách A: Kiểm thử qua Web Simulator & API Gateway (Khuyên dùng - Hoạt động 100%)
+1. **Lấy URL Endpoint của API Gateway**:
    Tại thư mục `infra/environments/sandbox/`, chạy lệnh:
    ```powershell
-   terraform output ingest_lambda_url
+   terraform output ingest_apigateway_url
    ```
-   *Kết quả mẫu:* `https://xxxx.lambda-url.us-east-1.on.aws/`
-2. **Thực hiện gửi Alert**:
+   *Kết quả mẫu:* `https://1ecxtwziyj.execute-api.us-east-1.amazonaws.com/alerts`
+2. **Thực hiện gửi Alert trực tiếp trên trình duyệt**:
    * Mở tệp tin [**`simulator/index.html`**](../simulator/index.html) bằng trình duyệt.
-   * Dán URL vừa lấy vào ô **Lambda Ingest Webhook URL**.
-   * Chọn mẫu sự cố (ví dụ: *High CPU Alert*) và nhấn **Trigger Webhook Alert**.
-   * *Nếu thành công:* Kết quả trả về màu xanh lá **Success! (HTTP 200)**.
-   * *Nếu thất bại (Báo lỗi 403 Forbidden hoặc Failed to Fetch):* Vui lòng chuyển sang **Cách B** (do tài khoản AWS bị chặn chính sách Public URL).
+   * Dán URL API Gateway vừa lấy vào ô **Lambda Ingest Webhook URL**.
+   * Chọn mẫu sự cố bất kỳ (ví dụ: *High CPU Alert*) và nhấn **Trigger Webhook Alert**.
+   * *Kết quả:* Nhận ngay phản hồi màu xanh lá **Success! (HTTP 200)** do API Gateway đã bypass thành công chính sách chặn URL của AWS.
+
 
 ### 👉 Cách B: Kiểm thử qua Giao diện Web + Python Command Bypass (Khuyên dùng cho Sandbox)
 1. Mở tệp tin [**`simulator/index.html`**](../simulator/index.html) trên trình duyệt.

@@ -52,3 +52,9 @@ output "tenant_a_iam_role_arn" {
   value       = module.tenant_a.tenant_iam_role_arn
   description = "IAM Role ARN with isolated data access rules for Tenant A"
 }
+
+output "ingest_apigateway_url" {
+  value       = "${aws_apigatewayv2_stage.default.invoke_url}alerts"
+  description = "API Gateway Endpoint for Alertmanager Webhook (Bypasses Lambda Function URL SCP)"
+}
+

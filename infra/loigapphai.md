@@ -226,6 +226,52 @@ Khai báo bổ sung tài nguyên `aws_lambda_permission` liên kết trực ti�
    terraform apply -auto-approve
    ```
 
+---
+
+## 6. Lỗi HTTP 403 AccessDeniedException Do Chính Sách Tổ Chức (AWS SCP) Chặn Public Lambda Function URL
+
+### Chi Tiết Lỗi (Error Message)
+Mặc dù đã cấu hình đầy đủ `aws_lambda_permission` cho phép truy cập công khai và `authorization_type = "NONE"`, khi gửi request HTTP (POST/OPTIONS) từ client tới Function URL vẫn nhận phản hồi lỗi:
+```text
+HTTP/1.1 403 Forbidden
+x-amzn-ErrorType: AccessDeniedException
+{"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}
+```
+
+### Nguyên Nhân (Root Cause)
+Tài khoản AWS Sandbox thuộc về một AWS Organization và bị kiểm soát bởi **Service Control Policy (SCP)** của tổ chức đó. Để đảm bảo an toàn bảo mật cho doanh nghiệp/trường học, quản trị viên AWS đã thiết lập chính sách SCP cấm tạo hoặc kích hoạt các endpoints công khai mà không có xác thực (`lambda:FunctionUrlAuthType = NONE`). 
+
+Do đó, mặc dù cấu hình tài nguyên của chúng ta trên tài khoản cục bộ là hoàn toàn đúng, mọi yêu cầu không được ký số (unsigned request) đi từ internet qua Function URL vẫn bị tường lửa cấp cao AWS Organization chặn lại và báo lỗi `AccessDeniedException`.
+
+### Cách Khắc Phục (Solution)
+Vì đây là chính sách SCP ở cấp độ tổ chức quản trị (không thể ghi đè bởi quyền sandbox cục bộ), chúng ta sử dụng **phương pháp kiểm thử bắc cầu thông qua API trực tiếp của AWS (Direct Invoke)**. Bằng cách này, chúng ta sử dụng chính tài khoản quản trị AWS CLI đã đăng nhập trên máy client để gửi trực tiếp yêu cầu xử lý tới Lambda mà không cần qua Endpoint HTTP công cộng:
+
+1. **Tạo script kiểm thử giả lập**:
+   Tạo tệp [`simulator/test_alert.py`](file:///d:/FIle_doc/Capstone_W11-12/simulator/test_alert.py) sử dụng thư viện `boto3` để thực hiện cuộc gọi SDK trực tiếp và đóng gói dữ liệu Prometheus Alertmanager dưới dạng cấu trúc Proxy Event (bao bọc payload trong key `"body"`).
+
+2. **Chạy script kiểm thử**:
+   ```powershell
+   python simulator/test_alert.py
+   ```
+   **Kết quả phản hồi**:
+   ```json
+   HTTP Response Status Code: 200
+   Response Body:
+   {
+     "message": "Alerts processed successfully",
+     "processed": 1,
+     "failed": 0,
+     "errors": []
+   }
+   ```
+   
+3. **Xác minh hàng đợi SQS**:
+   Chạy lệnh kiểm tra hàng đợi để thấy số lượng tin nhắn tăng lên 1:
+   ```powershell
+   aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/945125812908/tf1-cdo05-sandbox-alert-queue.fifo --attribute-names ApproximateNumberOfMessages
+   ```
+
+
 
 
 

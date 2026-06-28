@@ -249,32 +249,73 @@ Tài khoản AWS Sandbox thuộc về một AWS Organization và bị kiểm so�
 Do đó, mặc dù cấu hình tài nguyên của chúng ta trên tài khoản cục bộ là hoàn toàn đúng, mọi yêu cầu không được ký số (unsigned request) đi từ internet qua Function URL vẫn bị tường lửa cấp cao AWS Organization chặn lại và báo lỗi `AccessDeniedException`.
 
 ### Cách Khắc Phục (Solution)
-Vì đây là chính sách SCP ở cấp độ tổ chức quản trị (không thể ghi đè bởi quyền sandbox cục bộ), chúng ta sử dụng **phương pháp kiểm thử bắc cầu thông qua API trực tiếp của AWS (Direct Invoke)**. Bằng cách này, chúng ta sử dụng chính tài khoản quản trị AWS CLI đã đăng nhập trên máy client để gửi trực tiếp yêu cầu xử lý tới Lambda mà không cần qua Endpoint HTTP công cộng:
+Vì đây là chính sách SCP ở cấp độ tổ chức quản trị (không thể ghi đè bởi quyền sandbox cục bộ), chúng ta sử dụng một trong hai giải pháp sau:
 
-1. **Tạo script kiểm thử giả lập**:
-   Tạo tệp [`simulator/test_alert.py`](file:///d:/FIle_doc/Capstone_W11-12/simulator/test_alert.py) sử dụng thư viện `boto3` để thực hiện cuộc gọi SDK trực tiếp và đóng gói dữ liệu Prometheus Alertmanager dưới dạng cấu trúc Proxy Event (bao bọc payload trong key `"body"`).
+#### Giải Pháp 1: Triển khai AWS HTTP API Gateway (Giải pháp tối ưu - Khuyên dùng)
+API Gateway là dịch vụ tiêu chuẩn và thường được cho phép công khai trên các tài khoản Sandbox (khác với Lambda Function URL hay bị chặn). Chúng ta sẽ cấu hình một HTTP API Gateway làm Proxy đứng trước để tiếp nhận request từ Web Simulator và gọi Lambda.
 
-2. **Chạy script kiểm thử**:
+1. **Thêm tài nguyên API Gateway trong `main.tf`**:
+   ```hcl
+   resource "aws_apigatewayv2_api" "ingest" {
+     name          = "tf1-cdo05-\${var.env}-ingest-api"
+     protocol_type = "HTTP"
+     
+     cors_configuration {
+       allow_origins = ["*"]
+       allow_methods = ["POST", "OPTIONS"]
+       allow_headers = ["content-type"]
+       max_age       = 86400
+     }
+   }
+
+   resource "aws_apigatewayv2_integration" "ingest" {
+     api_id                 = aws_apigatewayv2_api.ingest.id
+     integration_type       = "AWS_PROXY"
+     integration_method     = "POST"
+     integration_uri        = aws_lambda_function.ingest.arn
+     payload_format_version = "2.0"
+   }
+
+   resource "aws_apigatewayv2_route" "ingest" {
+     api_id    = aws_apigatewayv2_api.ingest.id
+     route_key = "POST /alerts"
+     target    = "integrations/\${aws_apigatewayv2_integration.ingest.id}"
+   }
+
+   resource "aws_apigatewayv2_stage" "default" {
+     api_id      = aws_apigatewayv2_api.ingest.id
+     name        = "\$default"
+     auto_deploy = true
+   }
+
+   resource "aws_lambda_permission" "apigw" {
+     statement_id  = "AllowAPIGatewayInvoke"
+     action        = "lambda:InvokeFunction"
+     function_name = aws_lambda_function.ingest.function_name
+     principal     = "apigateway.amazonaws.com"
+     source_arn    = "\${aws_apigatewayv2_api.ingest.execution_arn}/*/*"
+   }
+   ```
+
+2. **Chạy apply hạ tầng và sử dụng**:
+   * Chạy lệnh `terraform apply -auto-approve` để lấy URL đầu ra `ingest_apigateway_url`.
+   * Sử dụng URL này dán trực tiếp vào Web Simulator [**`simulator/index.html`**](../simulator/index.html) để thực hiện kiểm thử thành công 100% qua giao diện.
+
+#### Giải Pháp 2: Kiểm thử bắc cầu bằng API trực tiếp của AWS (Direct Invoke)
+Sử dụng chính tài khoản quản trị AWS CLI đã đăng nhập trên máy client để gửi trực tiếp yêu cầu xử lý tới Lambda thông qua AWS SDK/CLI (bypass endpoint HTTP công cộng):
+
+1. **Chạy script kiểm thử bằng Python**:
+   Sử dụng thư viện `boto3` gửi event được bao bọc dưới dạng Proxy Event (payload nằm trong key `"body"`):
    ```powershell
    python simulator/test_alert.py
    ```
-   **Kết quả phản hồi**:
-   ```json
-   HTTP Response Status Code: 200
-   Response Body:
-   {
-     "message": "Alerts processed successfully",
-     "processed": 1,
-     "failed": 0,
-     "errors": []
-   }
-   ```
-   
-3. **Xác minh hàng đợi SQS**:
-   Chạy lệnh kiểm tra hàng đợi để thấy số lượng tin nhắn tăng lên 1:
+
+2. **Xác minh hàng đợi SQS**:
+   Chạy lệnh kiểm tra hàng đợi để thấy số lượng tin nhắn tăng lên:
    ```powershell
    aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/945125812908/tf1-cdo05-sandbox-alert-queue.fifo --attribute-names ApproximateNumberOfMessages
    ```
+
 
 
 

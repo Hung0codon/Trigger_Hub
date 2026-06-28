@@ -356,6 +356,46 @@ Nếu họ chỉ phân quyền cho tài khoản của thành viên khác trong n
    * Chạy lệnh `docker pull` image đó về máy local.
    * Tạo một kho ECR riêng trên tài khoản của bạn hoặc push sang kho công cộng (Docker Hub/ECR Public) để làm registry trung gian test tạm thời.
 
+---
+
+## 8. Lỗi Sai Lệch Cấu Hình Kubernetes Manifests & ArgoCD So Với Bản Bàn Giao Của AI Team
+
+### Chi Tiết Lỗi (Error Details)
+Khi tiến hành tích hợp và triển khai ứng dụng AI Engine lên cụm EKS bằng ArgoCD, gặp 3 vấn đề cấu hình lớn:
+1. **Sai lệch cổng & image**: Tệp `rollout.yaml` và `service.yaml` cũ dùng image giả lập (`tf1-ai-engine:latest`) và cổng `5000`. Khi deploy lên, container không hoạt động vì image bàn giao từ AI Team sử dụng cổng **`8080`**, image `589077667575.dkr.ecr.us-east-1.amazonaws.com/tf1-ai-triage-engine:v1.0.0` và yêu cầu probes `/healthz`, `/readyz`.
+2. **Sai địa chỉ Repo trong ArgoCD**: Toàn bộ thuộc tính `repoURL` trong các ứng dụng ArgoCD (`app-of-apps.yaml`, `apps/*.yaml`) trỏ về URL github của thành viên cũ:
+   `https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git`
+   Khiến ArgoCD không đồng bộ được mã nguồn mới nhất từ repo hiện tại của bạn (`https://github.com/Hung0codon/Trigger_Hub.git`).
+3. **Kustomize Build Error với Rollout**: Khi cố gắng dùng directive `replicas` trong file `kustomization.yaml` của sandbox overlay để scale Rollout, lệnh `kubectl kustomize` bị lỗi do Kustomize không hỗ trợ scale tự động cho Custom Resource (Rollout) qua directive `replicas`.
+
+### Nguyên Nhân (Root Cause)
+* Các tệp cấu hình K8s ban đầu được viết theo dạng mock (giả lập) trước khi có code thật của đội AI.
+* Repo được fork/clone từ một tài khoản GitHub cũ mà chưa được cập nhật lại URL của repository đích.
+* Kustomize chỉ hỗ trợ `replicas:` cho các tài nguyên mặc định như Deployment, StatefulSet, DaemonSet.
+
+### Cách Khắc Phục (Solution)
+1. **Cập nhật đồng bộ các tệp Manifests**:
+   * Sửa `rollout.yaml` và `service.yaml` sử dụng Port **`8080`**, image chính thức từ ECR của AI Team, cấu hình probes sức khỏe và 12 biến môi trường Runtime.
+2. **Cập nhật Repo URL cho ArgoCD**:
+   * Quét toàn bộ thư mục `manifests/argocd/` và thay đổi tất cả thuộc tính `repoURL` thành:
+     `https://github.com/Hung0codon/Trigger_Hub.git`
+   * Đổi tên file cấu hình và app ArgoCD thành `tf1-ai-triage-engine` cho đồng bộ.
+3. **Sửa lỗi Kustomize Build bằng JSON Patch**:
+   * Thay thế directive `replicas` trong `manifests/overlays/sandbox/ai-engine/kustomization.yaml` bằng thẻ `patches` để cấu hình scale số lượng replica một cách hợp lệ:
+     ```yaml
+     patches:
+       - target:
+           group: argoproj.io
+           version: v1alpha1
+           kind: Rollout
+           name: tf1-ai-triage-engine
+         patch: |
+           - op: replace
+             path: /spec/replicas
+             value: 1
+     ```
+
+
 
 
 

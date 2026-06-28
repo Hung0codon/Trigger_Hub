@@ -128,7 +128,7 @@ Tệp tin `ci-build-test.yml` xây dựng một **Quality Gate (Cổng kiểm so
       - name: Update Kubernetes Manifest Image Tag
         run: |
           cd manifests/overlays/sandbox
-          # kustomize edit set image tf1-ai-engine=...
+          # kustomize edit set image tf1-ai-triage-engine=...
 ```
 * **Tại sao cần**: Đây chính là trái tim của GitOps. 
   * CI pipeline **không tự chạy lệnh `kubectl apply`** để thay đổi pod trên Kubernetes. 
@@ -176,7 +176,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    repoURL: https://github.com/Hung0codon/Trigger_Hub.git
     targetRevision: HEAD
     path: manifests/argocd/apps
 ```
@@ -230,7 +230,7 @@ Tệp tin `namespaces-rbac.yaml` được cấu hình với **Sync Wave: "0"** �
 #### B. Đường dẫn nguồn (Source Path)
 ```yaml
   source:
-    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    repoURL: https://github.com/Hung0codon/Trigger_Hub.git
     targetRevision: HEAD
     path: manifests/overlays/sandbox/namespaces-rbac
 ```
@@ -268,7 +268,7 @@ Do đó, nó cần được khởi chạy ngay sau khi phân vùng mạng (Names
 ---
 ---
 
-## 6. Khởi Tạo Ứng Dụng Con Cho Động Cơ Trí Tuệ Nhân Tạo AI Engine (`manifests/argocd/apps/ai-engine.yaml`)
+## 6. Khởi Tạo Ứng Dụng Con Cho Động Cơ Trí Tuệ Nhân Tạo AI Engine (`manifests/argocd/apps/ai-triage-engine.yaml`)
 
 ### 🔍 Tại sao cần tệp tin này?
 **AI Engine** (`tf1-ai-triage-engine`) là trái tim phân tích thông minh của hệ thống. Nó chịu trách nhiệm chính trong việc nhận dữ liệu cảnh báo từ hàng đợi, phân loại độ ưu tiên, chỉ định phòng ban xử lý và gợi ý tài liệu khắc phục (Playbook).
@@ -277,7 +277,7 @@ Bởi vì AI Engine phụ thuộc vào cơ sở hạ tầng cơ bản (Wave 0) v
 
 ---
 
-### 🛠️ Giải thích chi tiết cấu trúc dòng lệnh của `ai-engine.yaml`
+### 🛠️ Giải thích chi tiết cấu trúc dòng lệnh của `ai-triage-engine.yaml`
 
 #### A. Thuộc tính Sync Wave (Sóng đồng bộ)
 ```yaml
@@ -500,7 +500,7 @@ kind: Rollout
   * **Bước cuối cùng (Tự động nâng lên 100%)**: Hoàn tất cập nhật, toàn bộ cụm chuyển sang phiên bản mới.
 
 #### B. Cấu hình mạng dịch vụ cho AI Engine (`service.yaml`)
-* Thiết lập Service loại `ClusterIP` lắng nghe cổng `5000` của AI Engine. Mọi request nội bộ từ CDO Correlator Worker sẽ kết nối thông qua endpoint này để yêu cầu AI phân loại sự cố.
+* Thiết lập Service loại `ClusterIP` lắng nghe cổng `8080` của AI Engine. Mọi request nội bộ từ CDO Correlator Worker sẽ kết nối thông qua endpoint này để yêu cầu AI phân loại sự cố.
 
 ---
 ---
@@ -567,13 +567,20 @@ Việc khai báo trong file này giúp Kustomize hiểu rằng đây là một c
 
 ### 🔍 Tại sao cần tệp tin này?
 Tương tự như cổng tiếp nhận Platform Service, trong môi trường thử nghiệm (Sandbox), chúng ta không cần chạy 2 Pods cho AI Engine.
-Việc khai báo ghi đè trong `manifests/overlays/sandbox/ai-engine/kustomization.yaml`:
+Tuy nhiên, do AI Engine sử dụng custom resource **`Rollout`** (không phải resource K8s tiêu chuẩn), Kustomize không hỗ trợ sử dụng thẻ `replicas` trực tiếp. Do đó, việc khai báo ghi đè được cấu hình qua JSON Patch trong `manifests/overlays/sandbox/ai-engine/kustomization.yaml`:
 ```yaml
-replicas:
-  - name: tf1-ai-engine
-    count: 1
+patches:
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+      name: tf1-ai-triage-engine
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
 ```
-Giúp giảm số lượng Pods hoạt động của AI Engine xuống **1 Pod** để tiết kiệm RAM và CPU cho cụm EKS chạy thử nghiệm. Khi cấu hình cho môi trường Production (`overlays/prod`), chúng ta có thể ghi đè số replicas lên 3 hoặc 4 để phục vụ tải cao của khách hàng thật.
+Cấu hình này giúp ghi đè và giảm số lượng Pods hoạt động của AI Engine xuống **1 Pod** để tiết kiệm RAM và CPU cho cụm EKS chạy thử nghiệm Sandbox. Khi cấu hình cho môi trường Production (`overlays/prod`), chúng ta có thể viết patch tương tự nâng số replicas lên 3 hoặc 4 để phục vụ tải cao của khách hàng thật.
 
 ---
 ---

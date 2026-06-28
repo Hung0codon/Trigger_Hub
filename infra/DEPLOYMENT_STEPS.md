@@ -224,14 +224,20 @@ Giai đoạn cuối cùng là hiện thực hóa các ứng dụng adapter serve
   * Thiết lập IAM Execution Role và IAM Policies giới hạn quyền cho 2 hàm Lambda:
     * Ingest Lambda: Chỉ có quyền `sqs:SendMessage` trên hàng đợi chính.
     * Integration Lambda: Có quyền đọc ghi DynamoDB (`GetItem`, `PutItem`, `UpdateItem`, `Query`), đọc ghi S3 bucket artifacts và lấy giá trị Secrets Manager.
+  * Triển khai **AWS HTTP API Gateway (v2)** (`aws_apigatewayv2_api`) đóng vai trò Ingestion Gateway:
+    * Tạo Route `/alerts` tích hợp trực tiếp (`AWS_PROXY`) với Ingest Lambda.
+    * Phân quyền Lambda Permission (`aws_lambda_permission`) cho phép API Gateway kích hoạt Lambda function.
+    * Điều này giúp giải quyết lỗi 403 Forbidden chéo tài khoản của Alertmanager, cung cấp endpoint HTTPS công cộng hiệu năng cao, độ trễ thấp và scale tự động không giới hạn.
   * Gọi module `observability` truyền đầy đủ tên SQS, DynamoDB, S3, và tên cả 2 Lambda functions để kích hoạt trọn vẹn 10 alarms đo lường.
   * Gọi module `tenant_a` để tự động khởi tạo hạ tầng giám sát và onboard khách hàng thử nghiệm `tenant-a` trong cụm EKS.
 
 ### Bước 23: Khai báo đầu ra của môi trường Sandbox (`infra/environments/sandbox/outputs.tf`)
-* **Lý do cần trước**: Tệp tin này là bước cuối cùng trong chu trình IaC. Nó xuất ra màn hình console tất cả các endpoint kết nối sau khi Terraform chạy xong (VPC ID, EKS API Endpoint, Lambda Webhook URL, SQS URLs, DynamoDB, S3 names và các thông số Namespace/Role của Tenant A). Các kỹ sư vận hành CI/CD và nhóm phát triển AIOps sẽ sử dụng trực tiếp các đầu ra này để tích hợp hệ thống mà không cần vào AWS Web Console để tìm kiếm thủ công.
+* **Lý do cần trước**: Tệp tin này là bước cuối cùng trong chu trình IaC. Nó xuất ra màn hình console tất cả các endpoint kết nối sau khi Terraform chạy xong (VPC ID, EKS API Endpoint, Lambda Webhook URL, API Gateway Ingest URL, SQS URLs, DynamoDB, S3 names và các thông số Namespace/Role của Tenant A). Các kỹ sư vận hành CI/CD và nhóm phát triển AIOps sẽ sử dụng trực tiếp các đầu ra này để tích hợp hệ thống mà không cần vào AWS Web Console để tìm kiếm thủ công.
 * **Chi tiết cấu trúc**:
   * Xuất endpoint API và Cluster Name của EKS.
-  * Xuất Public HTTPS URL của Lambda Ingest Webhook.
+  * Xuất Public HTTPS URL của Lambda Ingest Webhook (Function URL).
+  * Xuất **API Gateway Ingest Endpoint URL (`ingest_apigateway_url`)** - Địa chỉ chính thức dùng để cấu hình nhận webhook cảnh báo từ bên ngoài.
   * Xuất URL của SQS Main Queue và DLQ.
   * Xuất tên S3 bucket và DynamoDB table.
   * Xuất thông số Namespace, Service Account và IAM Role của Tenant A.
+

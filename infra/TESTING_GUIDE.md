@@ -13,7 +13,7 @@
 
 ## 1. Chuẩn Bị Trước Khi Test
 
-### 🛠️ Yêu cầu môi trường
+### 🛠️ Yêu cầu môi trườn
 * **AWS CLI**: Đã được đăng nhập với quyền Administrator của tài khoản Sandbox.
 * **Trình duyệt Web**: Dùng để mở giao diện Web App Alert Simulator.
 * **Git**: Dùng để đẩy nhánh code lên remote repository.

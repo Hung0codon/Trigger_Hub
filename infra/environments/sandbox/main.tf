@@ -162,7 +162,16 @@ resource "aws_lambda_function" "ingest" {
 resource "aws_lambda_function_url" "ingest_url" {
   function_name      = aws_lambda_function.ingest.function_name
   authorization_type = "NONE"
+
+  cors {
+    allow_origins     = ["*"]
+    allow_methods     = ["*"]
+    allow_headers     = ["content-type"]
+    expose_headers    = ["date", "keep-alive"]
+    max_age           = 86400
+  }
 }
+
 
 # ==================== INTEGRATION LAMBDA ====================
 

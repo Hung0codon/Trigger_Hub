@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tf1-platform-service
+  labels:
+    app: tf1-platform-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tf1-platform-service
+  template:
+    metadata:
+      labels:
+        app: tf1-platform-service
+    spec:
+      containers:
+        - name: server
+          image: 945125812908.dkr.ecr.us-east-1.amazonaws.com/tf1-platform-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

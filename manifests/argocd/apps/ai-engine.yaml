@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tf1-ai-engine
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    targetRevision: HEAD
+    path: manifests/overlays/sandbox/ai-engine
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tf1-cdo05-sandbox-ai
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

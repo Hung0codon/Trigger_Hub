@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TF1 Triage Hub — Alert Simulator</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f111a;
+      --bg-card: rgba(30, 34, 51, 0.45);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.4);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.2);
+      --warning: #f59e0b;
+      --critical: #ef4444;
+      --critical-glow: rgba(239, 68, 68, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+      padding: 2rem 1.5rem;
+    }
+
+    h1, h2, h3 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa 0%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-purple {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    /* MAIN GRID LAYOUT */
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 968px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* GLASS CARD */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .card-title {
+      font-size: 1.3rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+      color: #fff;
+    }
+
+    /* FORM ELEMENTS */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: rgba(17, 24, 39, 0.7);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .input-glow {
+      border-color: rgba(139, 92, 246, 0.5);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px var(--primary-glow);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    /* LIVE PREVIEW & JSON */
+    pre {
+      background: rgba(10, 12, 20, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      color: #10b981;
+      max-height: 250px;
+    }
+
+    /* RESPONSE PANEL */
+    .response-box {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 8px;
+      display: none;
+      border: 1px solid transparent;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .response-success {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .response-error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    /* MOCK CHANNELS PANEL */
+    .mock-panel {
+      margin-top: 2rem;
+    }
+
+    .slack-message {
+      background: #1a1d21;
+      border-left: 4px solid var(--critical);
+      border-radius: 4px;
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+      color: #d1d2d3;
+      margin-top: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .slack-header {
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .jira-ticket {
+      background: #202b42;
+      border: 1px solid rgba(76, 154, 255, 0.3);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .jira-header {
+      color: #4c9aff;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* PIPELINE VISUALIZATION */
+    .pipeline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .pipe-step {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      text-align: center;
+      font-size: 0.75rem;
+      z-index: 2;
+    }
+
+    .pipe-line {
+      height: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      flex-grow: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .pipe-active {
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .pulse {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      top: -2px;
+      left: 0;
+      animation: pulseMove 1.5s infinite linear;
+      display: none;
+    }
+
+    @keyframes pulseMove {
+      0% { left: 0%; opacity: 1; }
+      100% { left: 100%; opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="badge badge-purple">TF1 Triage Pipeline simulator</span>
+      <h1>TF1 Triage Hub Alert Simulator</h1>
+      <p>Simulate production alerts and trigger the AI Triage Hub pipeline</p>
+    </header>
+
+    <div class="grid">
+      <!-- TRIGGER FORM CARD -->
+      <div class="card">
+        <h2 class="card-title">
+          <svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,7V13H13V7H11M11,15V17H13V15H11Z" /></svg>
+          Configure Webhook Alert Payload
+        </h2>
+
+        <!-- Ingest Lambda URL -->
+        <div class="form-group">
+          <label for="webhookUrl">Lambda Ingest Webhook URL</label>
+          <input type="text" id="webhookUrl" class="input-glow" placeholder="Paste your Function URL (e.g. https://xxxx.lambda-url.us-east-1.on.aws/)" value="">
+        </div>
+
+        <!-- Template Selector -->
+        <div class="form-group">
+          <label for="templateSelect">Load Incident Template</label>
+          <select id="templateSelect" onchange="loadTemplate()">
+            <option value="cpu">High CPU Alert (EKS)</option>
+            <option value="ddb_read">DynamoDB Read Throttling</option>
+            <option value="ddb_write">DynamoDB Write Throttling</option>
+            <option value="s3_error">S3 Access Denied Error</option>
+            <option value="lambda_duration">Lambda Integration Timeout</option>
+            <option value="sqs_age">SQS Message Age Exceeded (Backlog)</option>
+          </select>
+        </div>
+
+        <!-- Alert Parameter Inputs -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label for="tenantId">Tenant ID</label>
+            <input type="text" id="tenantId" value="tenant-a">
+          </div>
+          <div class="form-group">
+            <label for="serviceName">Service</label>
+            <input type="text" id="serviceName" value="tf1-ai-triage-engine">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label for="envName">Environment</label>
+            <select id="envName">
+              <option value="sandbox">sandbox</option>
+              <option value="staging">staging</option>
+              <option value="prod">prod</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="severity">Severity</label>
+            <select id="severity">
+              <option value="critical">critical</option>
+              <option value="warning">warning</option>
+              <option value="info">info</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="alertname">Alert Name</label>
+          <input type="text" id="alertname" value="CPUThresholdExceeded">
+        </div>
+
+        <div class="form-group">
+          <label for="summary">Summary</label>
+          <input type="text" id="summary" value="High CPU utilization detected on pod">
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" rows="3">CPU usage on pod is above 85% for the last 5 minutes.</textarea>
+        </div>
+
+        <!-- PIPELINE ANIMATION STEP -->
+        <div class="pipeline">
+          <div class="pipe-step">Webhook</div>
+          <div class="pipe-line"><div class="pulse" id="pulse1"></div></div>
+          <div class="pipe-step">Ingest Lambda</div>
+          <div class="pipe-line"><div class="pulse" id="pulse2"></div></div>
+          <div class="pipe-step">SQS Queue</div>
+          <div class="pipe-line"><div class="pulse" id="pulse3"></div></div>
+          <div class="pipe-step">Integration</div>
+        </div>
+
+        <!-- Trigger Button -->
+        <button class="btn" onclick="sendAlert()">
+          <span id="btnText">Trigger Webhook Alert</span>
+        </button>
+
+        <!-- Response Status Box -->
+        <div id="responseBox" class="response-box"></div>
+      </div>
+
+      <!-- PAYLOAD & MOCK PREVIEW CARD -->
+      <div>
+        <div class="card" style="margin-bottom: 2rem;">
+          <h2 class="card-title">
+            <svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M12.89,3L14.85,3.4L11.11,21L9.15,20.6L12.89,3M19.59,12L16,8.41V5.58L22.42,12L16,18.41V15.58L19.59,12M1.58,12L8,5.58V8.41L4.41,12L8,15.58V18.41L1.58,12Z" /></svg>
+            Prometheus Webhook JSON Payload
+          </h2>
+          <pre id="jsonPreview"></pre>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
+            <svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M22,12C22,17.5 17.5,22 12,22C6.5,22 2,17.5 2,12C2,6.5 6.5,2 12,2C17.5,2 22,6.5 22,12M11,17H13V11H11V17M11,9H13V7H11V9Z" /></svg>
+            Downstream Integration Preview
+          </h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Previewing simulated notifications sent to engineers:</p>
+          
+          <!-- Slack Integration Mock -->
+          <div class="mock-panel">
+            <h3 style="font-size: 0.9rem; font-weight: 600; color: #5a1c5c; display: flex; align-items: center; gap: 0.5rem;">
+              <span style="display:inline-block;width:10px;height:10px;background:#5a1c5c;border-radius:2px;"></span>
+              Slack Notification (#alerts-channel)
+            </h3>
+            <div class="slack-message" id="slackPreview">
+              <div class="slack-header">🚨 [TF1 Triage Hub] Incident Alert in SANDBOX</div>
+              <div><b>Incident ID:</b> <code id="mockIncidentId">5ae7cfd8...</code></div>
+              <div><b>Tenant:</b> <code id="mockTenant">tenant-a</code> | <b>Service:</b> <code id="mockService">tf1-ai-triage-engine</code></div>
+              <div><b>Severity:</b> <span id="mockSeverity" style="color:var(--critical); font-weight:bold;">CRITICAL</span></div>
+              <div><b>Summary:</b> <span id="mockSummary">High CPU utilization detected on pod</span></div>
+              <div><b>AI RCA Analysis:</b> Running automated diagnostics...</div>
+              <div><b>Jira Ticket:</b> <a href="#" style="color:#4c9aff; text-decoration:none;" id="mockJiraKey">JIRA-5AE7CFD8</a></div>
+            </div>
+          </div>
+
+          <!-- Jira Integration Mock -->
+          <div class="mock-panel" style="margin-top: 1.5rem;">
+            <h3 style="font-size: 0.9rem; font-weight: 600; color: #0052cc; display: flex; align-items: center; gap: 0.5rem;">
+              <span style="display:inline-block;width:10px;height:10px;background:#0052cc;border-radius:2px;"></span>
+              Jira Incident Ticket
+            </h3>
+            <div class="jira-ticket" id="jiraPreview">
+              <div class="jira-header">
+                <span id="jiraKey">JIRA-5AE7CFD8</span>
+                <span class="badge badge-purple" style="font-size: 0.65rem;">To Do</span>
+              </div>
+              <div style="font-weight:600; margin-bottom: 0.25rem;" id="jiraTitle">[CPUThresholdExceeded] Alert on tenant-a</div>
+              <div style="color:var(--text-muted); font-size:0.8rem;" id="jiraDesc">CPU usage on pod is above 85% for the last 5 minutes.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Templates definition
+    const templates = {
+      cpu: {
+        alertname: "CPUThresholdExceeded",
+        tenant_id: "tenant-a",
+        service: "tf1-ai-triage-engine",
+        severity: "critical",
+        summary: "High CPU utilization detected on pod",
+        description: "CPU usage on pod is above 85% for the last 5 minutes."
+      },
+      ddb_read: {
+        alertname: "DynamoDBReadThrottleEvents",
+        tenant_id: "tenant-a",
+        service: "database-store",
+        severity: "warning",
+        summary: "DynamoDB Read Throttling detected",
+        description: "System experienced read capacity throttling events on primary alerts table."
+      },
+      ddb_write: {
+        alertname: "DynamoDBWriteThrottleEvents",
+        tenant_id: "tenant-a",
+        service: "database-store",
+        severity: "critical",
+        summary: "DynamoDB Write Throttling critical",
+        description: "Critical write capacity exhaustion on the alerts table. Data ingestion may be impacted."
+      },
+      s3_error: {
+        alertname: "S3AccessDeniedErrors",
+        tenant_id: "tenant-b",
+        service: "storage-service",
+        severity: "critical",
+        summary: "S3 Secure Access Denied",
+        description: "Multiple attempts detected attempting non-TLS requests to private artifacts S3 bucket."
+      },
+      lambda_duration: {
+        alertname: "LambdaIntegrationDurationAlarm",
+        tenant_id: "tenant-a",
+        service: "integration-lambda",
+        severity: "warning",
+        summary: "Integration Lambda timeout warning",
+        description: "Average execution duration of the integration lambda exceeded the 10-second warning threshold."
+      },
+      sqs_age: {
+        alertname: "SQSMessageAgeExceeded",
+        tenant_id: "common",
+        service: "sqs-alert-queue",
+        severity: "critical",
+        summary: "SQS oldest message age warning",
+        description: "Message age in the queue is above 300 seconds, indicating consumer backlog or consumer failure."
+      }
+    };
+
+    // Load URL from localstorage
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedUrl = localStorage.getItem("tf1_webhook_url");
+      if (savedUrl) {
+        document.getElementById("webhookUrl").value = savedUrl;
+      }
+      loadTemplate();
+    });
+
+    // Load template values
+    function loadTemplate() {
+      const selected = document.getElementById("templateSelect").value;
+      const data = templates[selected];
+      if (data) {
+        document.getElementById("alertname").value = data.alertname;
+        document.getElementById("tenantId").value = data.tenant_id;
+        document.getElementById("serviceName").value = data.service;
+        document.getElementById("severity").value = data.severity;
+        document.getElementById("summary").value = data.summary;
+        document.getElementById("description").value = data.description;
+      }
+      updatePreview();
+    }
+
+    // Build the exact Prometheus Alertmanager structure
+    function buildPayload() {
+      const alertname = document.getElementById("alertname").value;
+      const tenantId = document.getElementById("tenantId").value;
+      const service = document.getElementById("serviceName").value;
+      const env = document.getElementById("envName").value;
+      const severity = document.getElementById("severity").value;
+      const summary = document.getElementById("summary").value;
+      const description = document.getElementById("description").value;
+
+      return {
+        receiver: "webhook",
+        status: "firing",
+        alerts: [
+          {
+            status: "firing",
+            labels: {
+              tenant_id: tenantId,
+              service: service,
+              env: env,
+              alertname: alertname,
+              severity: severity
+            },
+            annotations: {
+              summary: summary,
+              description: description
+            },
+            startsAt: new Date().toISOString(),
+            endsAt: "0001-01-01T00:00:00Z"
+          }
+        ]
+      };
+    }
+
+    // Update real-time views
+    function updatePreview() {
+      const payload = buildPayload();
+      document.getElementById("jsonPreview").textContent = JSON.stringify(payload, null, 2);
+
+      // Generate a mock hash for preview
+      const alert = payload.alerts[0];
+      const fingerKey = `${alert.labels.tenant_id}:${alert.labels.service}:${alert.labels.env}:${alert.labels.alertname}:${alert.startsAt}`;
+      // Simple hash simulation
+      let hash = 0;
+      for (let i = 0; i < fingerKey.length; i++) {
+        hash = (hash << 5) - hash + fingerKey.charCodeAt(i);
+        hash |= 0;
+      }
+      const mockHash = Math.abs(hash).toString(16).padEnd(8, '0').substring(0, 8);
+
+      document.getElementById("mockIncidentId").textContent = mockHash + "..." + Math.abs(hash * 3).toString(16).substring(0, 8);
+      document.getElementById("mockTenant").textContent = alert.labels.tenant_id;
+      document.getElementById("mockService").textContent = alert.labels.service;
+      
+      const sevEl = document.getElementById("mockSeverity");
+      sevEl.textContent = alert.labels.severity.toUpperCase();
+      if (alert.labels.severity === 'critical') {
+        sevEl.style.color = 'var(--critical)';
+        document.getElementById("slackPreview").style.borderColor = 'var(--critical)';
+      } else if (alert.labels.severity === 'warning') {
+        sevEl.style.color = 'var(--warning)';
+        document.getElementById("slackPreview").style.borderColor = 'var(--warning)';
+      } else {
+        sevEl.style.color = 'var(--success)';
+        document.getElementById("slackPreview").style.borderColor = 'var(--success)';
+      }
+      
+      document.getElementById("mockSummary").textContent = alert.annotations.summary;
+      document.getElementById("mockJiraKey").textContent = `JIRA-${mockHash.toUpperCase()}`;
+      document.getElementById("jiraKey").textContent = `JIRA-${mockHash.toUpperCase()}`;
+      document.getElementById("jiraTitle").textContent = `[${alert.labels.alertname}] Alert on ${alert.labels.tenant_id}`;
+      document.getElementById("jiraDesc").textContent = alert.annotations.description;
+    }
+
+    // Attach listeners
+    ["alertname", "tenantId", "serviceName", "envName", "severity", "summary", "description"].forEach(id => {
+      document.getElementById(id).addEventListener("input", updatePreview);
+      document.getElementById(id).addEventListener("change", updatePreview);
+    });
+
+    // Send the alert via Webhook
+    async function sendAlert() {
+      const webhookUrl = document.getElementById("webhookUrl").value.trim();
+      const responseBox = document.getElementById("responseBox");
+      const btnText = document.getElementById("btnText");
+      
+      if (!webhookUrl) {
+        alert("Please paste your Lambda Ingest Webhook URL first.");
+        return;
+      }
+
+      // Save URL
+      localStorage.setItem("tf1_webhook_url", webhookUrl);
+
+      // Start animations
+      btnText.textContent = "Sending Alert...";
+      responseBox.style.display = "none";
+      
+      // Pulse animation
+      const p1 = document.getElementById("pulse1");
+      const p2 = document.getElementById("pulse2");
+      const p3 = document.getElementById("pulse3");
+      
+      p1.style.display = "block";
+      setTimeout(() => { p2.style.display = "block"; }, 300);
+      setTimeout(() => { p3.style.display = "block"; }, 600);
+
+      const payload = buildPayload();
+
+      try {
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch(e) {
+          data = { message: text };
+        }
+
+        responseBox.style.display = "block";
+        if (response.ok) {
+          responseBox.className = "response-box response-success";
+          responseBox.innerHTML = `<strong>Success! (HTTP ${response.status})</strong><br>Response: ${JSON.stringify(data)}`;
+        } else {
+          responseBox.className = "response-box response-error";
+          responseBox.innerHTML = `<strong>Error (HTTP ${response.status})</strong><br>Response: ${JSON.stringify(data)}`;
+        }
+      } catch (err) {
+        responseBox.style.display = "block";
+        responseBox.className = "response-box response-error";
+        responseBox.innerHTML = `<strong>Network Connection Failed</strong><br>${err.message}`;
+      } finally {
+        btnText.textContent = "Trigger Webhook Alert";
+        setTimeout(() => {
+          p1.style.display = "none";
+          p2.style.display = "none";
+          p3.style.display = "none";
+        }, 1500);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tf1-observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    targetRevision: HEAD
+    path: manifests/overlays/sandbox/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tf1-cdo05-sandbox-monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

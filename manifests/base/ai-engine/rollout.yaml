@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: tf1-ai-engine
+  labels:
+    app: tf1-ai-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tf1-ai-engine
+  template:
+    metadata:
+      labels:
+        app: tf1-ai-engine
+    spec:
+      containers:
+        - name: server
+          image: 945125812908.dkr.ecr.us-east-1.amazonaws.com/tf1-ai-engine:latest
+          ports:
+            - containerPort: 5000
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: tf1-ai-engine-success-rate
+        args:
+          - name: service-name
+            value: tf1-ai-engine
+      steps:
+        - setWeight: 10
+        - pause: {} # Pause indefinitely until manually approved (SRE Promotion Gate)
+        - setWeight: 30
+        - pause: { duration: 10m }
+        - setWeight: 60
+        - pause: { duration: 10m }

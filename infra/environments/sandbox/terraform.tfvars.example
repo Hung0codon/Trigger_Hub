@@ -1,0 +1,4 @@
+# AWS configuration variables
+aws_region             = "ap-southeast-1"
+env                    = "sandbox"
+sns_subscription_email = "your-email@example.com"

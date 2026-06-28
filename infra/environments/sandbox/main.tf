@@ -164,11 +164,11 @@ resource "aws_lambda_function_url" "ingest_url" {
   authorization_type = "NONE"
 
   cors {
-    allow_origins     = ["*"]
-    allow_methods     = ["*"]
-    allow_headers     = ["content-type"]
-    expose_headers    = ["date", "keep-alive"]
-    max_age           = 86400
+    allow_origins  = ["*"]
+    allow_methods  = ["*"]
+    allow_headers  = ["content-type"]
+    expose_headers = ["date", "keep-alive"]
+    max_age        = 86400
   }
 }
 
@@ -323,7 +323,7 @@ module "tenant_a" {
 resource "aws_apigatewayv2_api" "ingest" {
   name          = "tf1-cdo05-${var.env}-ingest-api"
   protocol_type = "HTTP"
-  
+
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["POST", "OPTIONS"]

@@ -626,6 +626,59 @@ Tương tự như các microservice khác, file `kustomization.yaml` này giúp 
 ### 🔍 Tại sao cần tệp tin này?
 Tệp tin này kế thừa toàn bộ cấu trúc thu thập logs/metrics của Prometheus Server cơ bản từ Base để áp dụng lên môi trường Sandbox. Do trong sandbox chúng ta chỉ cần chạy 1 instance Prometheus tối giản, ta không ghi đè thêm tham số phức tạp mà chỉ trỏ trực tiếp về Base nhằm duy trì cấu hình tối giản, dễ kiểm soát.
 
+---
+---
+
+## 17. Khai Báo OIDC Provider Cho GitHub Actions (`infra/environments/sandbox/github_oidc.tf`)
+
+### 🔍 Tại sao cần tệp tin này?
+Như đã phân tích ở phần **OIDC Authentication** trong Job `plan` và `apply`, để GitHub Actions có thể liên lạc một cách bảo mật với AWS mà không cần lưu trữ bất kỳ static credentials (Access Key/Secret Key) nào trên GitHub Secrets, ta cần thiết lập mối quan hệ tin cậy song phương.
+
+Tệp tin `github_oidc.tf` tự động hóa việc cấu hình này:
+1. **OIDC Provider (`aws_iam_openid_connect_provider`)**: Khai báo để AWS tin tưởng các token bảo mật do GitHub cấp.
+2. **IAM Role (`aws_iam_role`)**: Tạo ra vai trò `tf1-cdo05-github-actions-role` chỉ chấp nhận kết nối từ đúng repository `Hung0codon/Trigger_Hub`.
+3. **IAM Policy (`aws_iam_role_policy`)**: Cấp quyền tối thiểu cần thiết để GitHub Actions thay đổi hạ tầng và đẩy Container Image lên ECR.
+
+---
+
+### 🛠️ Giải thích chi tiết các cấu phần trong `github_oidc.tf`
+
+#### A. Khai báo OIDC Provider cho GitHub Actions
+```hcl
+data "tls_certificate" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+```
+* **Ý nghĩa**: Lấy dấu vân tay SSL (`thumbprint`) hiện tại của máy chủ GitHub. Dấu vân tay này bắt buộc phải khớp khi AWS thực hiện bắt tay bảo mật HTTPS với GitHub.
+```hcl
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
+}
+```
+* **Ý nghĩa**: Đăng ký dịch vụ OIDC của GitHub làm nhà cung cấp danh tính (Identity Provider) được ủy quyền trên tài khoản AWS của bạn.
+
+#### B. Cấu hình Trust Policy giới hạn Repository
+```hcl
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:Hung0codon/Trigger_Hub:*"
+          }
+        }
+```
+* **Tại sao cần bảo mật cực kỳ cao ở đây?**: 
+  * Trường `aud` (Audience) bắt buộc phải là `sts.amazonaws.com`.
+  * Trường `sub` (Subject) cấu hình bắt buộc token phải đến từ repository **`repo:Hung0codon/Trigger_Hub:*`**. 
+  * Điều này đảm bảo rằng **chỉ có các pipeline chạy trên repo của chính bạn** mới có quyền assume-role này. Nếu một hacker Fork dự án của bạn sang một tài khoản GitHub khác và chạy pipeline, AWS sẽ từ chối cấp quyền vì tên repo không khớp với Trust Policy.
+
+#### C. Quyền hạn cấp cho GitHub Actions Policy
+* Cấp quyền tương tác đầy đủ với các tài nguyên AWS (EKS, ECR, Lambda, SQS, DynamoDB, S3, EC2) để GitHub Actions có thể thay đổi và cập nhật hạ tầng hoàn chỉnh.
+
+
 
 
 

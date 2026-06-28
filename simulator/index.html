@@ -426,6 +426,21 @@
 
         <!-- Response Status Box -->
         <div id="responseBox" class="response-box"></div>
+
+        <!-- Fallback section for 403 SCP -->
+        <div style="margin-top: 1.5rem; padding: 1rem; border-radius: 8px; border: 1px dashed rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.02);">
+          <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--warning); display: flex; align-items: center; gap: 0.35rem;">
+            <svg style="width:16px;height:16px" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z" /></svg>
+            AWS SCP 403 / Network Connection Fallback
+          </h4>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+            If your AWS Sandbox blocks public HTTP URLs (HTTP 403), use this Python CLI command to invoke the Lambda function directly using your local AWS CLI credentials:
+          </p>
+          <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+            <input type="text" id="pythonCmdInput" readonly style="font-family: 'Courier New', monospace; font-size: 0.75rem; flex-grow: 1; padding: 0.5rem; background: #000; border: 1px solid var(--border-color); color: #34d399; border-radius: 4px;" value="">
+            <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem; background: var(--primary);" onclick="copyPythonCmd()">Copy</button>
+          </div>
+        </div>
       </div>
 
       <!-- PAYLOAD & MOCK PREVIEW CARD -->
@@ -631,6 +646,20 @@
       document.getElementById("jiraKey").textContent = `JIRA-${mockHash.toUpperCase()}`;
       document.getElementById("jiraTitle").textContent = `[${alert.labels.alertname}] Alert on ${alert.labels.tenant_id}`;
       document.getElementById("jiraDesc").textContent = alert.annotations.description;
+
+      // Dynamic Python bypass command generation
+      const rawPayload = JSON.stringify(payload);
+      const escapedPayload = rawPayload.replace(/"/g, '\\"');
+      const pythonCmd = `python -c "import boto3, json; client=boto3.client('lambda', region_name='us-east-1'); payload=json.loads('${escapedPayload}'); client.invoke(FunctionName='tf1-cdo05-sandbox-ingest-handler', Payload=json.dumps({'body': json.dumps(payload)}))"`;
+      document.getElementById("pythonCmdInput").value = pythonCmd;
+    }
+
+    function copyPythonCmd() {
+      const input = document.getElementById("pythonCmdInput");
+      input.select();
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value);
+      alert("Copied Python direct invoke command to clipboard!");
     }
 
     // Attach listeners

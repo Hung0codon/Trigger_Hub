@@ -4,6 +4,15 @@ kind: Kustomization
 resources:
   - ../../../base/ai-engine
 
-replicas:
-  - name: tf1-ai-engine
-    count: 1
+patches:
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+      name: tf1-ai-triage-engine
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+

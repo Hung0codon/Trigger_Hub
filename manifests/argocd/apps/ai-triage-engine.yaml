@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: tf1-ai-engine
+  name: tf1-ai-triage-engine
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    repoURL: https://github.com/Hung0codon/Trigger_Hub.git
     targetRevision: HEAD
     path: manifests/overlays/sandbox/ai-engine
   destination:
@@ -22,3 +22,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+

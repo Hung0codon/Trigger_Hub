@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/me-dangnhatminh/xbrain-capstone-cdo5.git
+    repoURL: https://github.com/Hung0codon/Trigger_Hub.git
     targetRevision: HEAD
     path: manifests/overlays/sandbox/namespaces-rbac
   destination:

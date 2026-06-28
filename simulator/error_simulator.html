@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TF1 Triage Hub — IaC Error & Diagnostic Simulator</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #080a10;
+      --bg-card: rgba(17, 22, 37, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.4);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.2);
+      --error: #ef4444;
+      --error-glow: rgba(239, 68, 68, 0.25);
+      --terminal-bg: #0d0e15;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 100% 100%, rgba(239, 68, 68, 0.1) 0%, transparent 50%);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+      padding: 2rem 1.5rem;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f43f5e 0%, #8b5cf6 50%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .badge-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* LAYOUT GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* SIDEBAR CARD */
+    .sidebar {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      height: fit-content;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-title {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      color: #fff;
+    }
+
+    .error-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .error-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .error-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .error-item.active {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+    }
+
+    .error-item h4 {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .status-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+    }
+
+    .indicator-badge {
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .indicator-active {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    .indicator-fixed {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    /* MAIN CONTAINER */
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* TERMINAL CARD */
+    .terminal-card {
+      background: var(--terminal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .terminal-header {
+      background: #161722;
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+
+    .terminal-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'Fira Code', monospace;
+    }
+
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+      min-height: 250px;
+      max-height: 400px;
+      overflow-y: auto;
+      color: #e5e7eb;
+      background: #090a0f;
+    }
+
+    .terminal-line {
+      margin-bottom: 0.5rem;
+      white-space: pre-wrap;
+    }
+
+    .terminal-input {
+      color: #10b981;
+    }
+
+    .terminal-error {
+      color: #f87171;
+    }
+
+    .terminal-success {
+      color: #34d399;
+    }
+
+    .terminal-warning {
+      color: #fbbf24;
+    }
+
+    /* ACTION BAR */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      padding: 1.25rem 2rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-run {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .btn-run:hover {
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .btn-success:hover {
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    }
+
+    /* TOGGLE SWITCH */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255,255,255,0.1);
+      transition: .4s;
+      border-radius: 34px;
+      border: 1px solid var(--border-color);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--success);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+
+    /* EXPLANATION CARD */
+    .explain-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+
+    .explain-title {
+      font-size: 1.3rem;
+      margin-bottom: 1.5rem;
+      color: #fff;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .explain-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .explain-section h4 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .explain-section p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    /* DIFF BLOCK */
+    .diff-block {
+      background: #0d0e15;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+    }
+
+    .diff-add { color: #34d399; background: rgba(16, 185, 129, 0.05); }
+    .diff-del { color: #f87171; background: rgba(239, 68, 68, 0.05); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="badge badge-error">Diagnostic Sandbox</span>
+      <h1>IaC Error & Diagnostic Simulator</h1>
+      <p>Simulate, analyze, and apply resolutions to common Capstone Infrastructure errors</p>
+    </header>
+
+    <div class="grid">
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        <h3 class="sidebar-title">Select Error Case</h3>
+        <div class="error-list" id="errorList">
+          <!-- Items populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- WORKSPACE -->
+      <div class="workspace">
+        <!-- TERMINAL -->
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot dot-red"></span>
+              <span class="terminal-dot dot-yellow"></span>
+              <span class="terminal-dot dot-green"></span>
+            </div>
+            <div class="terminal-title">powershell - sandbox_env</div>
+          </div>
+          <div class="terminal-body" id="terminal">
+            <!-- Simulated console output -->
+          </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div class="action-bar">
+          <div class="toggle-container">
+            <span style="font-weight: 500; font-size: 0.95rem;">Apply Resolution:</span>
+            <label class="switch">
+              <input type="checkbox" id="fixToggle" onchange="toggleFix()">
+              <span class="slider"></span>
+            </label>
+            <span id="fixStatus" style="font-size: 0.85rem; font-weight: 600;" class="terminal-error">Unresolved</span>
+          </div>
+
+          <button class="btn btn-run" id="actionBtn" onclick="runSimulation()">
+            Run Simulation
+          </button>
+        </div>
+
+        <!-- DIAGNOSTICS -->
+        <div class="explain-card" id="explainCard">
+          <!-- Explanation populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 6 Error definitions from loigapphai.md
+    const errorsData = [
+      {
+        id: 1,
+        title: "1. S3 Backend 403 Forbidden",
+        cmd: "terraform init",
+        fixedStatus: false,
+        errorOutput: `Initializing the backend...\n\n\x1b[31mError: Error refreshing state: Unable to access object "sandbox/terraform.tfstate" in S3 bucket "tf1-cdo05-tfstate": \noperation error S3: HeadObject, https response error StatusCode: 403, RequestID: 9X8Y7Z6A5B4C, HostID: amzn-s3-demo-id, \napi error Forbidden: Forbidden\x1b[0m`,
+        successOutput: `Initializing the backend...\n\nSuccessfully configured the backend "s3"!\nTerraform has been successfully initialized!`,
+        rootCause: "The default S3 bucket name 'tf1-cdo05-tfstate' is a globally shared namespace and is already owned/registered by another AWS account. Therefore, your current AWS identity has no read/write access to it, throwing a 403 Forbidden error.",
+        solution: "Create a unique S3 bucket by appending your AWS Account ID (e.g. `tf1-cdo05-tfstate-945125812908`) and update the backend definition in `backend.tf` before running initialization again.",
+        diff: `\x1b[31m-    bucket         = "tf1-cdo05-tfstate"\x1b[0m\n\x1b[32m+    bucket         = "tf1-cdo05-tfstate-945125812908" # Unique Bucket\x1b[0m`
+      },
+      {
+        id: 2,
+        title: "2. Unicode SG Description Error",
+        cmd: "terraform apply",
+        fixedStatus: false,
+        errorOutput: `aws_security_group.alb: Creating...\n\n\x1b[31mError: creating Security Group (tf1-cdo05-sandbox-sg-alb): operation error EC2: CreateSecurityGroup, \nhttps response error StatusCode: 400, RequestID: 89b20017-fb1d-476b-abc0-6d7af9b09575, \napi error InvalidParameterValue: Value (Tường lửa kiểm soát lưu lượng đi vào Load Balancer) \nfor parameter GroupDescription is invalid. Character sets beyond ASCII are not supported.\x1b[0m`,
+        successOutput: `aws_security_group.alb: Creating...\naws_security_group.alb: Creation complete after 2s [id=sg-05f431a4e12e]`,
+        rootCause: "AWS EC2 API limits the GroupDescription parameter to standard ASCII characters. Vietnamese unicode accented letters (e.g., 'ườ', 'ử', 'ả') violate this constraint and cause AWS to abort with a 400 Bad Request.",
+        solution: "Update the security group descriptions in `main.tf` to plain ASCII English (no accents) and run apply again.",
+        diff: `\x1b[31m-  description = "Tường lửa kiểm soát lưu lượng đi vào Load Balancer"\x1b[0m\n\x1b[32m+  description = "Security group for Application Load Balancer" # ASCII only\x1b[0m`
+      },
+      {
+        id: 3,
+        title: "3. EKS Node Group Creation Fail",
+        cmd: "terraform apply",
+        fixedStatus: false,
+        errorOutput: `aws_eks_node_group.this: Creating...\n...\n\x1b[31mError: waiting for EKS Node Group (tf1-cdo05-sandbox-eks-cluster:tf1-cdo05-sandbox-eks-node-group) create: \nunexpected state 'CREATE_FAILED', wanted target 'ACTIVE'. \nlast error: NodeCreationFailure: Unhealthy nodes in the kubernetes cluster\x1b[0m`,
+        successOutput: `aws_eks_node_group.this: Creating...\naws_eks_node_group.this: Creation complete after 9m [id=tf1-cdo05-sandbox-eks-cluster:node-group]`,
+        rootCause: "EKS Managed Node Group was launched without a custom security group assignment. The default security group isolated traffic on port 443 and 10250, blocking nodes from communicating with the EKS Control Plane. The nodes could never handshake and register successfully.",
+        solution: "Create an EC2 Launch Template that attaches both the custom Node Security Group and EKS Primary Security Group to the worker nodes, then clean up the failed deployment and re-apply.",
+        diff: `\x1b[32m+ resource "aws_launch_template" "node" {\n+   vpc_security_group_ids = [var.sg_eks_nodes_id, aws_eks_cluster.this.vpc_config[0].cluster_security_group_id]\n+ }\x1b[0m`
+      },
+      {
+        id: 4,
+        title: "4. Lambda URL CORS Constraint",
+        cmd: "terraform apply",
+        fixedStatus: false,
+        errorOutput: `aws_lambda_function_url.ingest_url: Modifying...\n\n\x1b[31mError: updating Lambda Function URL (tf1-cdo05-sandbox-ingest-handler): operation error Lambda: UpdateFunctionUrlConfig, \nhttps response error StatusCode: 400, RequestID: d13a4225-3639-40a4-91a5-141aa6ab16c9, \napi error ValidationException: 1 validation error detected: Value '[POST, OPTIONS]' at 'cors.allowMethods' \nfailed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 6...]\x1b[0m`,
+        successOutput: `aws_lambda_function_url.ingest_url: Modifying...\naws_lambda_function_url.ingest_url: Modifications complete after 1s [id=tf1-cdo05-sandbox-ingest-handler]`,
+        rootCause: "AWS Lambda Function URL API restricts each element in the `allow_methods` CORS array to a length of 6 characters or less. The method 'OPTIONS' is 7 characters long, violating the length check.",
+        solution: "Use the wildcard string `\"*\"` (1 character length) inside the `allow_methods` block instead of listing out 'OPTIONS' explicitly.",
+        diff: `\x1b[31m-    allow_methods     = ["POST", "OPTIONS"]\x1b[0m\n\x1b[32m+    allow_methods     = ["*"] # Bypasses length limit\x1b[0m`
+      },
+      {
+        id: 5,
+        title: "5. Lambda URL 403 Forbidden",
+        cmd: "curl -X POST https://lambda.us-east-1.on.aws/",
+        fixedStatus: false,
+        errorOutput: `\x1b[31mHTTP/1.1 403 Forbidden\nContent-Type: application/json\nx-amzn-RequestId: bd65d4ff-ab1f-4e73-9cac-c5d6740ebbb9\n\n{"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}\x1b[0m`,
+        successOutput: `HTTP/1.1 200 OK\nContent-Type: application/json\n\n{"message": "Alerts processed successfully"}`,
+        rootCause: "Configuring a Lambda Function URL with `AuthType: NONE` removes SigV4 requirements, but still needs a resource-based policy enabling public invocation permissions. Without this, AWS Lambda rejects anonymous calls with a 403.",
+        solution: "Add an `aws_lambda_permission` resource in Terraform specifying principal `*` and action `lambda:InvokeFunctionUrl` for AuthType NONE.",
+        diff: `\x1b[32m+ resource "aws_lambda_permission" "allow_public" {\n+   action                 = "lambda:InvokeFunctionUrl"\n+   principal              = "*"\n+   function_url_auth_type = "NONE"\n+ }\x1b[0m`
+      },
+      {
+        id: 6,
+        title: "6. AWS SCP 403 AccessDenied",
+        cmd: "curl -X POST https://lambda.us-east-1.on.aws/",
+        fixedStatus: false,
+        errorOutput: `\x1b[31mHTTP/1.1 403 Forbidden\nx-amzn-ErrorType: AccessDeniedException\n\n{"Message":"Forbidden. For troubleshooting Function URL authorization issues..."}\x1b[0m`,
+        successOutput: `(Invoking directly via boto3 SDK)\nSending test alert (emulated proxy event) to Lambda...\n\nHTTP Response Status Code: 200\nResponse Body:\n{\n  "message": "Alerts processed successfully",\n  "processed": 1\n}`,
+        rootCause: "The Sandbox AWS Account is governed by an AWS Organization Service Control Policy (SCP) which prohibits enabling public, unauthenticated HTTP endpoints (`FunctionUrlAuthType = NONE`), resulting in AccessDeniedException.",
+        solution: "Bypass the public Function URL endpoint entirely by testing the ingestion pipeline via direct invocation (`aws lambda invoke` or a Python boto3 SDK script using local credentials).",
+        diff: `\x1b[32m+ # Run python simulator/test_alert.py using boto3 sdk\n+ client = boto3.client('lambda')\n+ client.invoke(FunctionName='...', Payload=json.dumps(lambda_event))\x1b[0m`
+      }
+    ];
+
+    let currentSelectedId = 1;
+
+    // Format console color escapes to HTML classes
+    function formatTerminalColor(text) {
+      return text
+        .replace(/\x1b\[31m([\s\S]*?)\x1b\[0m/g, '<span class="terminal-error">$1</span>')
+        .replace(/\x1b\[32m([\s\S]*?)\x1b\[0m/g, '<span class="terminal-success">$1</span>')
+        .replace(/\x1b\[33m([\s\S]*?)\x1b\[0m/g, '<span class="terminal-warning">$1</span>');
+    }
+
+    // Populate Sidebar list
+    function renderSidebar() {
+      const errorList = document.getElementById("errorList");
+      errorList.innerHTML = "";
+      
+      errorsData.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `error-item ${item.id === currentSelectedId ? 'active' : ''}`;
+        div.onclick = () => selectError(item.id);
+
+        const badgeClass = item.fixedStatus ? 'indicator-fixed' : 'indicator-active';
+        const badgeText = item.fixedStatus ? 'Resolved' : 'Active';
+
+        div.innerHTML = `
+          <h4>${item.title}</h4>
+          <div class="status-indicator">
+            <span style="color: var(--text-muted)">Type: ${item.cmd.startsWith('terraform') ? 'IaC' : 'Endpoint'}</span>
+            <span class="indicator-badge ${badgeClass}">${badgeText}</span>
+          </div>
+        `;
+        errorList.appendChild(div);
+      });
+    }
+
+    // Handle selection change
+    function selectError(id) {
+      currentSelectedId = id;
+      renderSidebar();
+      
+      const errorObj = errorsData.find(e => e.id === id);
+      
+      // Update toggle check
+      document.getElementById("fixToggle").checked = errorObj.fixedStatus;
+      updateFixStatusText(errorObj.fixedStatus);
+
+      // Reset Terminal
+      const term = document.getElementById("terminal");
+      term.innerHTML = `<div class="terminal-line"><span class="terminal-input">PS D:\\File_doc\\Capstone_W11-12\\infra></span> ${errorObj.cmd}</div>`;
+
+      // Update Explanation panel
+      const explainCard = document.getElementById("explainCard");
+      explainCard.innerHTML = `
+        <h2 class="explain-title">
+          <svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M11,16.5H13V18.5H11V16.5M12.2,5.5C14.3,5.5 16,7.2 16,9.3C16,10.6 15.2,11.3 14.4,12C13.6,12.7 13,13.3 13,14.5H11C11,12.5 12,11.5 13,10.8C13.8,10.2 14.5,9.7 14.5,9.3C14.5,8 13.5,7 12.2,7C10.9,7 9.9,8 9.9,9.3H7.9C7.9,6.9 9.8,5.5 12.2,5.5Z" /></svg>
+          Diagnostic: ${errorObj.title}
+        </h2>
+        <div class="explain-section">
+          <h4>🔍 Root Cause</h4>
+          <p>${errorObj.rootCause}</p>
+        </div>
+        <div class="explain-section">
+          <h4>💡 Resolution</h4>
+          <p>${errorObj.solution}</p>
+        </div>
+        <div class="explain-section">
+          <h4>🛠️ Code Diff (Fix Applied)</h4>
+          <div class="diff-block">${formatTerminalColor(errorObj.diff)}</div>
+        </div>
+      `;
+    }
+
+    // Toggle Fix handler
+    function toggleFix() {
+      const isChecked = document.getElementById("fixToggle").checked;
+      const errorObj = errorsData.find(e => e.id === currentSelectedId);
+      errorObj.fixedStatus = isChecked;
+      
+      updateFixStatusText(isChecked);
+      renderSidebar();
+    }
+
+    function updateFixStatusText(isFixed) {
+      const statusText = document.getElementById("fixStatus");
+      if (isFixed) {
+        statusText.textContent = "Resolved";
+        statusText.className = "terminal-success";
+      } else {
+        statusText.textContent = "Unresolved";
+        statusText.className = "terminal-error";
+      }
+    }
+
+    // Simulate Command Running
+    function runSimulation() {
+      const errorObj = errorsData.find(e => e.id === currentSelectedId);
+      const term = document.getElementById("terminal");
+      const actionBtn = document.getElementById("actionBtn");
+
+      // Button loading
+      actionBtn.disabled = true;
+      actionBtn.textContent = "Executing...";
+
+      // Clear terminal and append input
+      term.innerHTML = `<div class="terminal-line"><span class="terminal-input">PS D:\\File_doc\\Capstone_W11-12\\infra></span> ${errorObj.cmd}</div>`;
+      
+      setTimeout(() => {
+        // Append execution output based on resolution toggle status
+        const outputLine = document.createElement("div");
+        outputLine.className = "terminal-line";
+        
+        if (errorObj.fixedStatus) {
+          outputLine.innerHTML = formatTerminalColor(errorObj.successOutput);
+        } else {
+          outputLine.innerHTML = formatTerminalColor(errorObj.errorOutput);
+        }
+        
+        term.appendChild(outputLine);
+        term.scrollTop = term.scrollHeight;
+
+        actionBtn.disabled = false;
+        actionBtn.textContent = "Run Simulation";
+      }, 1000);
+    }
+
+    // Initialize Page
+    document.addEventListener("DOMContentLoaded", () => {
+      selectError(1);
+    });
+  </script>
+</body>
+</html>

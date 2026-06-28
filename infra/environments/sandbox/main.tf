@@ -172,6 +172,15 @@ resource "aws_lambda_function_url" "ingest_url" {
   }
 }
 
+resource "aws_lambda_permission" "allow_public_function_url" {
+  statement_id           = "AllowFunctionURLInvoke"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.ingest.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
+
 
 # ==================== INTEGRATION LAMBDA ====================
 

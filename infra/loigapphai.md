@@ -193,6 +193,40 @@ Tuy nhiên, phương thức `OPTIONS` có độ dài là **7 ký tự** (`O-P-T-
    terraform apply -auto-approve
    ```
 
+---
+
+## 5. Lỗi HTTP 403 Forbidden Khi Gọi Lambda Function URL (Thiếu Resource-based Policy Permission)
+
+### Chi Tiết Lỗi (Error Message)
+```text
+Error (HTTP 403)
+Response: {"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}
+```
+
+### Nguyên Nhân (Root Cause)
+Khi cấu hình Lambda Function URL với thuộc tính `authorization_type = "NONE"`, hệ thống vẫn yêu cầu cấu hình một **Resource-based Policy (Chính sách dựa trên tài nguyên)** rõ ràng để cho phép truy cập công cộng. 
+
+Mặc dù tùy chọn `NONE` báo hiệu rằng không sử dụng cơ chế chữ ký AWS Signature Version 4 để xác thực người dùng, nhưng nếu thiếu tài nguyên `aws_lambda_permission` cho phép mọi đối tượng (`principal = "*"`) gọi phương thức `lambda:InvokeFunctionUrl`, AWS Lambda mặc định sẽ chặn truy cập và phản hồi lỗi **HTTP 403 Forbidden**.
+
+### Cách Khắc Phục (Solution)
+Khai báo bổ sung tài nguyên `aws_lambda_permission` liên kết trực tiếp tới Lambda Ingest Function:
+
+1. Thêm cấu hình sau vào tệp [`infra/environments/sandbox/main.tf`](file:///d:/FIle_doc/Capstone_W11-12/infra/environments/sandbox/main.tf):
+   ```hcl
+   resource "aws_lambda_permission" "allow_public_function_url" {
+     statement_id           = "AllowFunctionURLInvoke"
+     action                 = "lambda:InvokeFunctionUrl"
+     function_name          = aws_lambda_function.ingest.function_name
+     principal              = "*"
+     function_url_auth_type = "NONE"
+   }
+   ```
+2. Chạy lại lệnh apply hạ tầng:
+   ```powershell
+   terraform apply -auto-approve
+   ```
+
+
 
 
 
